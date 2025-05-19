@@ -90,7 +90,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
               <SelectValue placeholder="Catégorie" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Toutes les catégories</SelectItem>
+              <SelectItem value="all">Toutes les catégories</SelectItem>
               {categories.map(category => (
                 <SelectItem key={category.id} value={category.slug}>
                   {category.name}
@@ -104,7 +104,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Trier par</SelectItem>
+              <SelectItem value="default">Trier par</SelectItem>
               <SelectItem value="price-asc">Prix croissant</SelectItem>
               <SelectItem value="price-desc">Prix décroissant</SelectItem>
               <SelectItem value="name-asc">Nom (A-Z)</SelectItem>
