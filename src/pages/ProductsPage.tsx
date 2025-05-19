@@ -11,17 +11,21 @@ const ProductsPage = () => {
   const categorySlug = searchParams.get('category');
   
   const [pageTitle, setPageTitle] = useState('Tous les produits');
+  const [filteredProducts, setFilteredProducts] = useState(products);
   
   useEffect(() => {
     if (categorySlug) {
       const category = categories.find(c => c.slug === categorySlug);
       if (category) {
         setPageTitle(`Catégorie : ${category.name}`);
+        setFilteredProducts(products.filter(p => p.category === categorySlug));
       } else {
         setPageTitle('Tous les produits');
+        setFilteredProducts(products);
       }
     } else {
       setPageTitle('Tous les produits');
+      setFilteredProducts(products);
     }
   }, [categorySlug]);
 
@@ -31,7 +35,7 @@ const ProductsPage = () => {
         <div className="flex flex-wrap justify-between items-center mb-8">
           <h1 className="text-2xl font-bold">{pageTitle}</h1>
           <div className="text-sm text-gray-500 mt-2 md:mt-0">
-            Affichage de {products.length} produits
+            Affichage de {filteredProducts.length} produits
           </div>
         </div>
         
@@ -62,7 +66,7 @@ const ProductsPage = () => {
           
           {/* Main content */}
           <div className="flex-1">
-            <ProductGrid products={products} />
+            <ProductGrid products={filteredProducts} />
           </div>
         </div>
       </div>

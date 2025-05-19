@@ -21,6 +21,11 @@ const OrdersPage = () => {
   // Filter orders for the current user
   const userOrders = user ? orders.filter(order => order.userId === user.id) : [];
 
+  // Format price in MAD
+  const formatPrice = (price: number) => {
+    return `${price.toFixed(2)} MAD`;
+  };
+
   if (userOrders.length === 0) {
     return (
       <Layout>
@@ -78,7 +83,7 @@ const OrdersPage = () => {
                   <TableCell className="font-medium">{order.id}</TableCell>
                   <TableCell>{new Date(order.date).toLocaleDateString('fr-FR')}</TableCell>
                   <TableCell>{order.items.length} articles</TableCell>
-                  <TableCell>{order.total.toFixed(2)} €</TableCell>
+                  <TableCell>{formatPrice(order.total)}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       order.status === 'delivered' 

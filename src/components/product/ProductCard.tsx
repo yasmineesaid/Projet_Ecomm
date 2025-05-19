@@ -18,6 +18,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     addToCart(product, 1);
   };
 
+  // Format price in MAD
+  const formatPrice = (price: number) => {
+    return `${price.toFixed(2)} MAD`;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-lg">
       <Link to={`/products/${product.id}`}>
@@ -44,7 +49,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <h3 className="text-lg font-semibold mb-1 text-shop-accent line-clamp-1">{product.name}</h3>
           <p className="text-gray-500 text-sm mb-2 line-clamp-2">{product.description}</p>
           <div className="flex items-center justify-between mt-3">
-            <span className="font-bold text-lg">{product.price.toFixed(2)} €</span>
+            <span className="font-bold text-lg">{formatPrice(product.price)}</span>
             <Button 
               onClick={handleAddToCart}
               variant="outline"
