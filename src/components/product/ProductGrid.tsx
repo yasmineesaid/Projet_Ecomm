@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '@/data/mockData';
 import ProductCard from './ProductCard';
 import { Search, Filter } from 'lucide-react';
@@ -19,14 +19,14 @@ interface ProductGridProps {
 
 const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [sortBy, setSortBy] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('default');
   const [showFilters, setShowFilters] = useState(false);
 
   // Filter products
   const filteredProducts = products.filter(product => {
     // Apply category filter
-    if (selectedCategory && product.category !== selectedCategory) {
+    if (selectedCategory && selectedCategory !== 'all' && product.category !== selectedCategory) {
       return false;
     }
     
@@ -120,7 +120,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
           <Button 
             onClick={() => {
               setSearchTerm('');
-              setSelectedCategory('');
+              setSelectedCategory('all');
             }}
             variant="outline"
             className="mt-3"

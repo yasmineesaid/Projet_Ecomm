@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ProductGrid from '@/components/product/ProductGrid';
 import { products, categories } from '@/data/mockData';
@@ -45,7 +45,7 @@ const ProductsPage = () => {
                 className="w-full justify-start"
                 asChild
               >
-                <a href="/products">Tous les produits</a>
+                <Link to="/products">Tous les produits</Link>
               </Button>
               {categories.map(category => (
                 <Button
@@ -54,7 +54,7 @@ const ProductsPage = () => {
                   className="w-full justify-start"
                   asChild
                 >
-                  <a href={`/products?category=${category.slug}`}>{category.name}</a>
+                  <Link to={`/products?category=${category.slug}`}>{category.name}</Link>
                 </Button>
               ))}
             </div>
