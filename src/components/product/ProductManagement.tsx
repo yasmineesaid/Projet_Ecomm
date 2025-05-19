@@ -1,6 +1,5 @@
 
-import React, { useState } from 'react';
-import { products as initialProducts } from '@/data/mockData';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,23 +28,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from './ProductForm';
 import { Product } from '@/data/mockData';
 import { formatPrice } from '@/utils/formatters';
+import api from '@/services/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ProductManagement = () => {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([...initialProducts]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch products with React Query
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => api.getProducts(),
+  });
 
   // Filter products based on role
-  React.useEffect(() => {
+  const filteredProducts = React.useMemo(() => {
     let filtered = [...products];
     
     // If user is vendor, only show their products
     if (user?.role === 'vendor') {
-      filtered = filtered.filter(product => product.vendor.id === user.id);
+      filtered = filtered.filter(product => product.user_id === user.id);
     }
     
     // Apply search filter
@@ -56,7 +62,7 @@ const ProductManagement = () => {
       );
     }
     
-    setFilteredProducts(filtered);
+    return filtered;
   }, [products, searchTerm, user]);
 
   const handleOpenDialog = (product?: Product) => {
@@ -73,45 +79,43 @@ const ProductManagement = () => {
     setCurrentProduct(null);
   };
 
-  const handleSubmit = (productData: Partial<Product>) => {
+  const handleSubmit = async (productData: Partial<Product>) => {
     setIsSubmitting(true);
     
-    // Simulate API delay
-    setTimeout(() => {
+    try {
       if (currentProduct) {
         // Update existing product
-        setProducts(products.map(p => 
-          p.id === currentProduct.id 
-            ? { ...currentProduct, ...productData } as Product 
-            : p
-        ));
+        await api.updateProduct(currentProduct.id, productData);
         toast.success(`Le produit ${productData.name} a été mis à jour`);
       } else {
         // Create new product
-        const newProduct = {
-          ...productData,
-          id: Math.max(...products.map(p => p.id)) + 1,
-          vendor: {
-            id: user?.id || 0,
-            name: user?.name || 'Unknown Vendor'
-          }
-        } as Product;
-        
-        setProducts([...products, newProduct]);
+        await api.createProduct(productData);
         toast.success(`Le produit ${productData.name} a été créé`);
       }
       
-      setIsSubmitting(false);
+      // Invalidate products query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       handleCloseDialog();
-    }, 800);
+    } catch (error) {
+      console.error('Error submitting product:', error);
+      toast.error("Une erreur est survenue lors de l'enregistrement du produit");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteProduct = (productId: number) => {
+  const handleDeleteProduct = async (productId: number) => {
     const product = products.find(p => p.id === productId);
     
     if (confirm(`Êtes-vous sûr de vouloir supprimer le produit "${product?.name}" ?`)) {
-      setProducts(products.filter(p => p.id !== productId));
-      toast.success(`Le produit ${product?.name} a été supprimé`);
+      try {
+        await api.deleteProduct(productId);
+        toast.success(`Le produit ${product?.name} a été supprimé`);
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast.error("Une erreur est survenue lors de la suppression du produit");
+      }
     }
   };
 
@@ -148,44 +152,51 @@ const ProductManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.id}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <img 
-                        src={product.image} 
-                        alt={product.name} 
-                        className="w-10 h-10 object-cover rounded mr-2" 
-                      />
-                      <span className="font-medium">{product.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell className="text-right">{formatPrice(product.price)}</TableCell>
-                  <TableCell className="text-right">{product.inventory}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleOpenDialog(product)}
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="border-red-500 text-red-500 hover:bg-red-50"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Chargement des produits...
                   </TableCell>
                 </TableRow>
-              ))}
-              {filteredProducts.length === 0 && (
+              ) : filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.id}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <img 
+                          src={product.image} 
+                          alt={product.name} 
+                          className="w-10 h-10 object-cover rounded mr-2" 
+                        />
+                        <span className="font-medium">{product.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{product.category}</TableCell>
+                    <TableCell className="text-right">{formatPrice(product.price)}</TableCell>
+                    <TableCell className="text-right">{product.inventory}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleOpenDialog(product)}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteProduct(product.id)}
+                          className="border-red-500 text-red-500 hover:bg-red-50"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     Aucun produit trouvé

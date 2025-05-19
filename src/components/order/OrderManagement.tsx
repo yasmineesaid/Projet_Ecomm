@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { orders as initialOrders, products } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -35,74 +33,71 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
-import { formatPrice } from '@/utils/formatters';
+import { formatPrice, formatDate } from '@/utils/formatters';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import api from '@/services/api';
 
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
 const OrderManagement = () => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState([...initialOrders]);
-  const [filteredOrders, setFilteredOrders] = useState([...initialOrders]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentOrderId, setCurrentOrderId] = useState<number | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>('processing');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Filter orders based on role and search term
-  React.useEffect(() => {
+  // Fetch orders with React Query
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ['orders'],
+    queryFn: () => api.getOrders(),
+  });
+
+  // Filter orders based on search term
+  const filteredOrders = React.useMemo(() => {
     let filtered = [...orders];
-    
-    // Filter by role
-    if (user?.role === 'vendor') {
-      filtered = filtered.filter(order => 
-        order.items.some(item => 
-          products.find(p => p.id === item.productId)?.vendor.id === user.id
-        )
-      );
-    } else if (user?.role === 'client') {
-      filtered = filtered.filter(order => order.userId === user.id);
-    }
     
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(order => 
         order.id.toString().includes(searchTerm) ||
         order.items.some(item => 
-          item.productName.toLowerCase().includes(searchTerm.toLowerCase())
+          item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     }
     
-    setFilteredOrders(filtered);
-  }, [orders, searchTerm, user]);
+    return filtered;
+  }, [orders, searchTerm]);
 
   const handleOpenStatusDialog = (orderId: number) => {
     const order = orders.find(o => o.id === orderId);
     if (order) {
       setCurrentOrderId(orderId);
-      setSelectedStatus(order.status);
+      setSelectedStatus(order.status as OrderStatus);
       setIsDialogOpen(true);
     }
   };
 
-  const handleUpdateStatus = () => {
+  const handleUpdateStatus = async () => {
     if (!currentOrderId) return;
     
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setOrders(orders.map(order => 
-        order.id === currentOrderId 
-          ? { ...order, status: selectedStatus }
-          : order
-      ));
-      
+    try {
+      await api.updateOrderStatus(currentOrderId, selectedStatus);
       toast.success(`Statut de la commande #${currentOrderId} mis à jour avec succès`);
-      setIsSubmitting(false);
+      
+      // Invalidate orders query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       setIsDialogOpen(false);
-    }, 800);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error("Une erreur est survenue lors de la mise à jour du statut");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusLabel = (status: OrderStatus): string => {
@@ -156,37 +151,43 @@ const OrderManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>
-                    {new Date(order.date).toLocaleDateString('fr-FR')}
-                  </TableCell>
-                  <TableCell>
-                    {/* Dans un vrai système, on afficherait le nom du client */}
-                    Client #{order.userId}
-                  </TableCell>
-                  <TableCell>
-                    {order.items.length} articles
-                  </TableCell>
-                  <TableCell>{formatPrice(order.total)}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClassName(order.status)}`}>
-                      {getStatusLabel(order.status)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenStatusDialog(order.id)}
-                    >
-                      Modifier le statut
-                    </Button>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    Chargement des commandes...
                   </TableCell>
                 </TableRow>
-              ))}
-              {filteredOrders.length === 0 && (
+              ) : filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.id}</TableCell>
+                    <TableCell>
+                      {formatDate(order.created_at || order.date)}
+                    </TableCell>
+                    <TableCell>
+                      {order.user?.name || `Client #${order.user_id}`}
+                    </TableCell>
+                    <TableCell>
+                      {order.items.length} articles
+                    </TableCell>
+                    <TableCell>{formatPrice(order.total)}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClassName(order.status as OrderStatus)}`}>
+                        {getStatusLabel(order.status as OrderStatus)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenStatusDialog(order.id)}
+                      >
+                        Modifier le statut
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                     Aucune commande trouvée

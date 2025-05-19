@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, users } from '../data/mockData';
+import { User } from '../data/mockData';
 import { toast } from "@/components/ui/sonner";
+import api from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -27,52 +28,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API request delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Simple mock login (in real app, this would be an API call)
-    const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (foundUser && password === 'password') { // In a real app, password would be hashed
-      setUser(foundUser);
-      localStorage.setItem('user', JSON.stringify(foundUser));
-      toast.success("Login successful!");
+    try {
+      const response = await api.login({ email, password });
+      
+      const userData = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        token: response.token
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      toast.success("Connexion réussie!");
       return true;
-    } else {
-      toast.error("Invalid email or password");
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("Email ou mot de passe invalide");
       return false;
     }
   };
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    // Simulate API request delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Check if user already exists
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-      toast.error("Email already in use");
+    try {
+      const response = await api.register({ 
+        name, 
+        email, 
+        password,
+        password_confirmation: password
+      });
+      
+      const userData = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        token: response.token
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      toast.success("Inscription réussie!");
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error("L'inscription a échoué. Veuillez réessayer.");
       return false;
     }
-
-    // Create a new user (in a real app, this would be an API call)
-    const newUser: User = {
-      id: users.length + 1,
-      name,
-      email,
-      role: 'client', // Default role for new users
-    };
-
-    users.push(newUser);
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    toast.success("Registration successful!");
-    return true;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    toast.info("You have been logged out");
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+      toast.info("Vous avez été déconnecté");
+    }
   };
 
   return (

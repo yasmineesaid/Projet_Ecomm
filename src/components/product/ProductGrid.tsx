@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Product } from '@/data/mockData';
 import ProductCard from './ProductCard';
 import { Search, Filter } from 'lucide-react';
@@ -12,16 +12,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { categories } from '@/data/mockData';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/services/api';
 
-interface ProductGridProps {
-  products: Product[];
-}
-
-const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
+const ProductGrid: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('default');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Fetch products using React Query
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => api.getProducts(),
+  });
 
   // Filter products
   const filteredProducts = products.filter(product => {
@@ -114,7 +118,11 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
         </div>
       </div>
 
-      {sortedProducts.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-8">
+          <p className="text-lg text-gray-500">Chargement des produits...</p>
+        </div>
+      ) : sortedProducts.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-lg text-gray-500">Aucun produit ne correspond à votre recherche.</p>
           <Button 

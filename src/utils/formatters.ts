@@ -16,3 +16,18 @@ export const formatPrice = (price: number): string => {
 export const formatDate = (date: string | Date): string => {
   return new Date(date).toLocaleDateString('fr-FR');
 };
+
+/**
+ * Convertit un objet en paramètres de requête URL
+ * @param params - L'objet contenant les paramètres
+ * @returns La chaîne de requête URL
+ */
+export const toQueryString = (params: Record<string, any>): string => {
+  return Object.entries(params)
+    .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+    )
+    .join('&');
+};
