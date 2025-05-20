@@ -12,20 +12,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { categories } from '@/data/mockData';
-import { useQuery } from '@tanstack/react-query';
-import api from '@/services/api';
 
-const ProductGrid: React.FC = () => {
+interface ProductGridProps {
+  products: Product[];
+}
+
+const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('default');
   const [showFilters, setShowFilters] = useState(false);
-
-  // Fetch products using React Query
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => api.getProducts(),
-  });
 
   // Filter products
   const filteredProducts = products.filter(product => {
@@ -118,11 +114,7 @@ const ProductGrid: React.FC = () => {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-8">
-          <p className="text-lg text-gray-500">Chargement des produits...</p>
-        </div>
-      ) : sortedProducts.length === 0 ? (
+      {sortedProducts.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-lg text-gray-500">Aucun produit ne correspond à votre recherche.</p>
           <Button 
